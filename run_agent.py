@@ -1894,6 +1894,18 @@ class AIAgent:
         the stop→length rewrite to them manufactures false truncations and
         causes the continuation nudge to consume the model's output budget
         on the next retry, making further false-positives more likely.
+
+        Identity resolution notes:
+        - The ``glm`` substring check runs on the resolved model id, so
+          aliases that carry a GLM token (``glm-4-9b``, ``zai/glm-5`` …) match, while a bare alias that hides the
+          model family entirely does not.
+        - The port/URL check runs on the resolved base URL: a custom
+          base URL still matches when it contains ``ollama`` or ``:11434``,
+          and a reverse proxy serving Ollama on another port matches
+          only if the provider is explicitly named ``ollama``.
+        - ``provider=="zai"`` routes are included regardless of URL
+          because Z.AI's GLM endpoints were the other half of the
+          original misreport family.
         """
         model_lower = (self.model or "").lower()
         provider_lower = (self.provider or "").lower()
