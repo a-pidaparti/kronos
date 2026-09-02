@@ -14,6 +14,10 @@ export {}
 
 declare global {
   interface Window {
+    __HERMES_AUTH_REQUIRED__?: boolean
+    __HERMES_BASE_PATH__?: string
+    __HERMES_BROWSER__?: boolean
+    __HERMES_SESSION_TOKEN__?: string
     hermesDesktop: {
       // Resolve a backend connection. Omit `profile` (or pass the primary) for
       // the window's backend; pass a named profile to lazily spawn/reuse that

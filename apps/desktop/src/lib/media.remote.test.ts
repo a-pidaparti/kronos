@@ -16,6 +16,7 @@ import {
 
 describe('isRemoteGateway', () => {
   afterEach(() => {
+    delete window.__HERMES_BROWSER__
     $connection.set(null)
   })
 
@@ -47,6 +48,7 @@ describe('filePathFromMediaPath', () => {
 
 describe('mediaExternalUrl', () => {
   afterEach(() => {
+    delete window.__HERMES_BROWSER__
     $connection.set(null)
   })
 
@@ -64,10 +66,10 @@ describe('mediaExternalUrl', () => {
   it('rewrites gateway-local paths to an authenticated download URL', () => {
     $connection.set({ mode: 'remote', baseUrl: 'https://gw', token: 's e/cret' } as never)
     expect(mediaExternalUrl('file:///tmp/a b.png')).toBe(
-      'https://gw/api/files/download?path=%2Ftmp%2Fa%20b.png&token=s%20e%2Fcret'
+      'https://gw/api/files/download?path=%2Ftmp%2Fa+b.png&token=s+e%2Fcret'
     )
     expect(mediaExternalUrl('/tmp/a b.png')).toBe(
-      'https://gw/api/files/download?path=%2Ftmp%2Fa%20b.png&token=s%20e%2Fcret'
+      'https://gw/api/files/download?path=%2Ftmp%2Fa+b.png&token=s+e%2Fcret'
     )
   })
 
@@ -75,10 +77,20 @@ describe('mediaExternalUrl', () => {
     $connection.set({ mode: 'remote', baseUrl: 'https://gw' } as never)
     expect(mediaExternalUrl('/tmp/a.png')).toBe('file:///tmp/a.png')
   })
+
+  it('uses same-origin cookie authentication for browser downloads', () => {
+    window.__HERMES_BROWSER__ = true
+    $connection.set({ mode: 'remote', baseUrl: 'https://gw.example/hermes', profile: 'research' } as never)
+
+    expect(mediaExternalUrl('/tmp/a b.png')).toBe(
+      'https://gw.example/hermes/api/files/download?path=%2Ftmp%2Fa+b.png&profile=research'
+    )
+  })
 })
 
 describe('mediaGatewayStreamUrl', () => {
   afterEach(() => {
+    delete window.__HERMES_BROWSER__
     $connection.set(null)
   })
 
@@ -102,6 +114,15 @@ describe('mediaGatewayStreamUrl', () => {
 
     expect(mediaGatewayStreamUrl('/tmp/a.mp4')).toBe(
       'hermes-media://remote/%2Ftmp%2Fa.mp4?connectionId=studio-ssh&profile=voice%20reviewer'
+    )
+  })
+
+  it('uses the authenticated seekable download route in the browser', () => {
+    window.__HERMES_BROWSER__ = true
+    $connection.set({ mode: 'remote', baseUrl: 'https://gw.example/hermes', profile: 'research', token: 'secret' } as never)
+
+    expect(mediaGatewayStreamUrl('/tmp/a.mp4')).toBe(
+      'https://gw.example/hermes/api/files/download?path=%2Ftmp%2Fa.mp4&profile=research&token=secret'
     )
   })
 })
@@ -242,6 +263,7 @@ describe('downloadGatewayMediaFile', () => {
   })
 
   afterEach(() => {
+    delete window.__HERMES_BROWSER__
     vi.unstubAllGlobals()
     $connection.set(null)
   })
@@ -265,6 +287,19 @@ describe('downloadGatewayMediaFile', () => {
 
     await expect(downloadGatewayMediaFile('/Users/me/project/report.md')).rejects.toThrow(
       'Desktop file download bridge'
+    )
+  })
+
+  it('uses the browser download flow without a native save bridge', async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    window.__HERMES_BROWSER__ = true
+    window.hermesDesktop = {} as never
+    $connection.set({ baseUrl: 'https://gw.example', mode: 'remote', token: 'secret' } as never)
+
+    await expect(downloadGatewayMediaFile('/Users/me/report.md')).resolves.toEqual({ saved: true })
+    expect(click).toHaveBeenCalledOnce()
+    expect((click.mock.instances[0] as HTMLAnchorElement | undefined)?.href).toBe(
+      'https://gw.example/api/files/download?path=%2FUsers%2Fme%2Freport.md&token=secret'
     )
   })
 })

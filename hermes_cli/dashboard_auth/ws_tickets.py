@@ -59,7 +59,7 @@ class TicketInvalid(Exception):
     """Ticket missing, expired, or already consumed."""
 
 
-def mint_ticket(*, user_id: str, provider: str) -> str:
+def mint_ticket(*, user_id: str, provider: str, org_id: str = "") -> str:
     """Generate a one-shot ticket bound to this user identity.
 
     The returned token is base64url, 43 bytes of entropy (32-byte random
@@ -69,6 +69,7 @@ def mint_ticket(*, user_id: str, provider: str) -> str:
     ticket = secrets.token_urlsafe(32)
     info = {
         "user_id": user_id,
+        "org_id": org_id,
         "provider": provider,
         "minted_at": int(time.time()),
     }
@@ -149,6 +150,7 @@ def consume_internal_credential(value: str) -> Dict[str, Any]:
         raise TicketInvalid("internal credential mismatch")
     return {
         "user_id": INTERNAL_USER_ID,
+        "org_id": "",
         "provider": INTERNAL_PROVIDER,
     }
 

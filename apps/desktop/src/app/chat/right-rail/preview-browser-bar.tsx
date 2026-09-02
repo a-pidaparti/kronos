@@ -41,8 +41,8 @@ interface PreviewBrowserBarProps {
   onPopOut?: () => void
   onReload: () => void
   onToggleAnnotate?: () => void
-  onToggleConsole: () => void
-  onToggleDevTools: () => void
+  onToggleConsole?: () => void
+  onToggleDevTools?: () => void
   /** The page's CURRENT address (it moves as the user navigates), not the
    *  target the tab was opened with. */
   url: string
@@ -261,18 +261,22 @@ export function PreviewBrowserBar({
           onSelect={onOpenExternal}
         />
       ) : null}
-      <PaneStripGlyph
-        active={consoleOpen}
-        icon={<Codicon name="terminal" size="0.8125rem" />}
-        label={consoleOpen ? copy.hideConsole : copy.showConsole}
-        onSelect={onToggleConsole}
-      />
-      <PaneStripGlyph
-        active={devToolsOpen}
-        icon={<Codicon name="bug" size="0.8125rem" />}
-        label={devToolsOpen ? copy.hideDevTools : copy.openDevTools}
-        onSelect={onToggleDevTools}
-      />
+      {onToggleConsole ? (
+        <PaneStripGlyph
+          active={consoleOpen}
+          icon={<Codicon name="terminal" size="0.8125rem" />}
+          label={consoleOpen ? copy.hideConsole : copy.showConsole}
+          onSelect={onToggleConsole}
+        />
+      ) : null}
+      {onToggleDevTools ? (
+        <PaneStripGlyph
+          active={devToolsOpen}
+          icon={<Codicon name="bug" size="0.8125rem" />}
+          label={devToolsOpen ? copy.hideDevTools : copy.openDevTools}
+          onSelect={onToggleDevTools}
+        />
+      ) : null}
     </div>
   )
 }

@@ -23,6 +23,7 @@ from hermes_cli import web_server
 from hermes_cli.dashboard_auth import clear_providers, register_provider
 from hermes_cli.dashboard_auth.ws_tickets import (
     _reset_for_tests,
+    consume_ticket,
     consume_internal_credential,
     internal_ws_credential,
     mint_ticket,
@@ -120,6 +121,10 @@ class TestWsTicketEndpoint:
         assert isinstance(body["ticket"], str)
         assert len(body["ticket"]) >= 32
         assert body["ttl_seconds"] == 30
+        identity = consume_ticket(body["ticket"])
+        assert identity["user_id"] == "stub-user-1"
+        assert identity["org_id"] == "stub-org-1"
+        assert identity["provider"] == "stub"
 
     def test_unauthenticated_returns_401_or_redirect(self, gated_app):
         r = gated_app.post("/api/auth/ws-ticket", follow_redirects=False)
@@ -221,7 +226,9 @@ class TestWsAuthOkGated:
         assert web_server._ws_auth_ok(ws_two) is False
 
     def test_ticket_subprotocol_is_single_use_and_selects_only_the_public_protocol(self, gated_app):
-        ticket = mint_ticket(user_id="subprotocol-user", provider="stub")
+        ticket = mint_ticket(
+            user_id="subprotocol-user", org_id="org-1", provider="stub"
+        )
         protocols = (
             web_server._GATEWAY_WS_PROTOCOL,
             f"{web_server._GATEWAY_WS_TICKET_PROTOCOL_PREFIX}{ticket}",
@@ -232,6 +239,7 @@ class TestWsAuthOkGated:
         assert web_server._ws_auth_ok(ws_one) is True
         assert ws_one._hermes_auth_identity == {
             "user_id": "subprotocol-user",
+            "org_id": "org-1",
             "provider": "stub",
         }
         assert ws_one._hermes_ws_subprotocol == web_server._GATEWAY_WS_PROTOCOL
@@ -472,4 +480,3 @@ class TestGatewayWsUrl:
         gw_cred = gw.split("internal=")[1].split("&")[0]
         sc_cred = sc.split("internal=")[1].split("&")[0]
         assert gw_cred == sc_cred
-

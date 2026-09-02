@@ -16559,6 +16559,7 @@ def _ws_auth_reason(ws: "WebSocket") -> tuple[Optional[str], str]:
                 # controller registration downstream.
                 ws._hermes_auth_identity = {
                     "user_id": info.get("user_id"),
+                    "org_id": info.get("org_id"),
                     "provider": info.get("provider"),
                 }
                 return None, "internal"
@@ -16580,15 +16581,16 @@ def _ws_auth_reason(ws: "WebSocket") -> tuple[Optional[str], str]:
 
         try:
             info = consume_ticket(ticket)
-            # The ticket binds a server-minted {user_id, provider}; stamp it
+            # The ticket binds a server-minted {user_id, org_id, provider}; stamp it
             # onto the WS object so ``gateway_ws`` can hand it to the gateway
             # transport, where it is the sole identity authority for
             # browser-controller registration. A client can never supply or
-            # spoof this value through RPC params. Only the two identity
+            # spoof this value through RPC params. Only the three identity
             # fields are carried — bookkeeping (e.g. ``minted_at``) is not
             # part of the identity contract.
             ws._hermes_auth_identity = {
                 "user_id": info.get("user_id"),
+                "org_id": info.get("org_id"),
                 "provider": info.get("provider"),
             }
             if protocol_ticket:

@@ -1,4 +1,5 @@
 import { readDesktopFileDataUrl } from '@/lib/desktop-fs'
+import { isBrowserHost } from '@/lib/host-capabilities'
 import { capitalize } from '@/lib/text'
 import { $connection } from '@/store/session'
 
@@ -120,10 +121,8 @@ export function mediaExternalUrl(path: string): string {
   if (isRemoteGateway()) {
     const conn = $connection.get()
 
-    if (conn?.baseUrl && conn.token) {
-      const file = encodeURIComponent(filePathFromMediaPath(path))
-
-      return `${conn.baseUrl}/api/files/download?path=${file}&token=${encodeURIComponent(conn.token)}`
+    if (conn?.baseUrl && (conn.token || isBrowserHost())) {
+      return managedFileUrl('download', path)
     }
   }
 
@@ -138,6 +137,13 @@ export function mediaGatewayStreamUrl(path: string): string {
   const conn = $connection.get()
 
   if (isRemoteGateway()) {
+    if (isBrowserHost()) {
+      // Media elements cannot attach the dashboard session header. The download
+      // route is the intentionally narrow query-token path and serves audio or
+      // video inline with Range support when requested by a media element.
+      return managedFileUrl('download', path)
+    }
+
     const file = encodeURIComponent(filePathFromMediaPath(path))
 
     const scope = [
@@ -209,6 +215,16 @@ export async function downloadGatewayMediaFile(
   const file = filePathFromMediaPath(path)
   const conn = $connection.get()
 
+  if (isBrowserHost()) {
+    const anchor = document.createElement('a')
+    anchor.href = managedFileUrl('download', file)
+    anchor.download = mediaName(file)
+    anchor.rel = 'noopener'
+    anchor.click()
+
+    return { saved: true }
+  }
+
   if (!window.hermesDesktop?.saveGatewayFile) {
     throw new Error('Desktop file download bridge is unavailable')
   }
@@ -219,6 +235,27 @@ export async function downloadGatewayMediaFile(
     profile: conn?.profile,
     suggestedName: mediaName(file)
   })
+}
+
+function managedFileUrl(action: 'download' | 'stream', path: string): string {
+  const conn = $connection.get()
+
+  if (!conn?.baseUrl) {
+    return mediaExternalUrl(path)
+  }
+
+  const url = new URL(`${conn.baseUrl.replace(/\/+$/, '')}/api/files/${action}`)
+  url.searchParams.set('path', filePathFromMediaPath(path))
+
+  if (conn.profile) {
+    url.searchParams.set('profile', conn.profile)
+  }
+
+  if (conn.token) {
+    url.searchParams.set('token', conn.token)
+  }
+
+  return url.toString()
 }
 
 export function mediaDisplayLabel(path: string): string {

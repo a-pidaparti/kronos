@@ -102,6 +102,32 @@ class TestWebUIBuildNeeded:
         assert h1 == h2
         assert len(h1) == 64
 
+    def test_desktop_renderer_change_invalidates_dashboard_build(self, tmp_path):
+        web_dir, dist_dir = _make_web_dir(tmp_path)
+        renderer = tmp_path / "apps" / "desktop" / "src" / "main.tsx"
+        renderer.parent.mkdir(parents=True)
+        renderer.write_text("export const surface = 'desktop'\n")
+        (dist_dir / ".vite").mkdir(parents=True)
+        (dist_dir / ".vite" / "manifest.json").write_text("{}")
+        self._stamp_current(web_dir)
+
+        renderer.write_text("export const surface = 'browser'\n")
+
+        assert _web_ui_build_needed(web_dir) is True
+
+    def test_shared_transport_change_invalidates_dashboard_build(self, tmp_path):
+        web_dir, dist_dir = _make_web_dir(tmp_path)
+        transport = tmp_path / "apps" / "shared" / "src" / "gateway.ts"
+        transport.parent.mkdir(parents=True)
+        transport.write_text("export const protocol = 1\n")
+        (dist_dir / ".vite").mkdir(parents=True)
+        (dist_dir / ".vite" / "manifest.json").write_text("{}")
+        self._stamp_current(web_dir)
+
+        transport.write_text("export const protocol = 2\n")
+
+        assert _web_ui_build_needed(web_dir) is True
+
     def test_write_stamp_creates_file_with_hash(self, tmp_path):
         import json as _json
         web_dir, _ = _make_web_dir(tmp_path)
@@ -161,7 +187,7 @@ class TestBuildWebUISkipsWhenFresh:
 
     def test_workspace_root_install_names_update_closure(self, tmp_path, monkeypatch):
         """From the workspace root, _build_web_ui must install the SAME
-        closure as `hermes update` (ui-tui + web + --include-workspace-root).
+        closure as `hermes update`, plus apps/desktop for the shared renderer.
 
         The install helper prefers `npm ci`, which deletes node_modules before
         reifying the requested tree — a narrower `--workspace web`-only pass
@@ -173,6 +199,8 @@ class TestBuildWebUISkipsWhenFresh:
         (tmp_path / "package-lock.json").write_text("{}", encoding="utf-8")
         (tmp_path / "ui-tui").mkdir()
         (tmp_path / "ui-tui" / "package.json").write_text("{}", encoding="utf-8")
+        (tmp_path / "apps" / "desktop").mkdir(parents=True)
+        (tmp_path / "apps" / "desktop" / "package.json").write_text("{}", encoding="utf-8")
         monkeypatch.delenv("TERMUX_VERSION", raising=False)
         monkeypatch.setenv("PREFIX", "/usr")
 
@@ -187,8 +215,8 @@ class TestBuildWebUISkipsWhenFresh:
         args, kwargs = mock_run.call_args
         cmd = args[0]
         assert "--include-workspace-root" in cmd
-        assert cmd.count("--workspace") == 2
-        assert "ui-tui" in cmd and "web" in cmd
+        assert cmd.count("--workspace") == 3
+        assert "ui-tui" in cmd and "web" in cmd and "apps/desktop" in cmd
         assert kwargs["cwd"] == tmp_path
 
     def test_workspace_root_install_skips_missing_ui_tui(self, tmp_path, monkeypatch):
@@ -426,4 +454,3 @@ class TestBuildRecoversFromMissingToolchain:
         assert result is True
         assert mock_install.call_count == 1
         assert mock_build.call_count == 1
-
