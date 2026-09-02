@@ -4438,7 +4438,7 @@ class TestRunConversation:
         self._setup_agent(agent)
         agent.base_url = "http://localhost:11434/v1"
         agent._base_url_lower = agent.base_url.lower()
-        agent.model = "glm-5.3-flash:cloud"
+        agent.model = "glm-4-9b"  # local GLM — no :cloud suffix
 
         tool_turn = _mock_response(
             content="",
@@ -4513,7 +4513,7 @@ class TestRunConversation:
         self._setup_agent(agent)
         agent.base_url = "http://localhost:11434/v1"
         agent._base_url_lower = agent.base_url.lower()
-        agent.model = "glm-5.3-flash:cloud"
+        agent.model = "glm-4-9b"  # local GLM — no :cloud suffix
 
         def _normalized(content, tool_calls=None):
             # Shape produced by the chat-completions transport's
@@ -4532,7 +4532,7 @@ class TestRunConversation:
         assert agent._suspicious_stop_rewrite is False
 
         # (2) GLM + unpunctuated tail after tool turn: rewrite + flag set.
-        agent.model = "glm-5.3-flash:cloud"
+        agent.model = "glm-4-9b"  # local GLM — no :cloud suffix
         suspicious = _normalized(
             "Based on the results the best next step is to configure now"
         )
@@ -4562,7 +4562,7 @@ class TestRunConversation:
         self._setup_agent(agent)
         agent.base_url = "http://localhost:11434/v1"
         agent._base_url_lower = agent.base_url.lower()
-        agent.model = "glm-5.3-flash:cloud"
+        agent.model = "glm-4-9b"  # local GLM — no :cloud suffix
 
         truncated = _mock_response(
             content="Let me explain the whole architecture step by step, the first",
@@ -4603,7 +4603,7 @@ class TestRunConversation:
         self._setup_agent(agent)
         agent.base_url = "http://localhost:11434/v1"
         agent._base_url_lower = agent.base_url.lower()
-        agent.model = "glm-5.3-flash:cloud"
+        agent.model = "glm-4-9b"  # local GLM — no :cloud suffix
 
         think_only = _mock_response(
             content=" analysing the request now",
@@ -4630,7 +4630,7 @@ class TestRunConversation:
         self._setup_agent(agent)
         agent.base_url = "http://localhost:11434/v1"
         agent._base_url_lower = agent.base_url.lower()
-        agent.model = "glm-5.3-flash:cloud"
+        agent.model = "glm-4-9b"  # local GLM — no :cloud suffix
 
         tool_turn = _mock_response(
             content="",
@@ -4692,7 +4692,7 @@ class TestRunConversation:
         self._setup_agent(agent)
         agent.base_url = "http://localhost:11434/v1"
         agent._base_url_lower = agent.base_url.lower()
-        agent.model = "glm-5.3-flash:cloud"
+        agent.model = "glm-4-9b"  # local GLM — no :cloud suffix
 
         tool_turn = _mock_response(
             content="",
