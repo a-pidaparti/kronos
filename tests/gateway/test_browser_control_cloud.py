@@ -51,12 +51,17 @@ def gated_dashboard():
 
 def test_dashboard_ticket_identity_is_carried_forward_without_trusting_rpc_params(gated_dashboard):
     _reset_for_tests()
-    ticket = mint_ticket(user_id="user-fixture", provider="provider-fixture")
+    ticket = mint_ticket(
+        user_id="user-fixture",
+        org_id="org-fixture",
+        provider="provider-fixture",
+    )
     ws = _fake_ticket_ws(ticket)
 
     assert web_server._ws_auth_ok(ws) is True
     assert ws._hermes_auth_identity == {
         "user_id": "user-fixture",
+        "org_id": "org-fixture",
         "provider": "provider-fixture",
     }
     assert web_server._ws_auth_ok(_fake_ticket_ws(ticket)) is False
@@ -64,12 +69,17 @@ def test_dashboard_ticket_identity_is_carried_forward_without_trusting_rpc_param
 
 def test_dashboard_ticket_subprotocol_carries_the_same_server_identity(gated_dashboard):
     _reset_for_tests()
-    ticket = mint_ticket(user_id="subprotocol-user", provider="provider-fixture")
+    ticket = mint_ticket(
+        user_id="subprotocol-user",
+        org_id="org-fixture",
+        provider="provider-fixture",
+    )
     ws = _fake_ticket_subprotocol_ws(ticket)
 
     assert web_server._ws_auth_ok(ws) is True
     assert ws._hermes_auth_identity == {
         "user_id": "subprotocol-user",
+        "org_id": "org-fixture",
         "provider": "provider-fixture",
     }
     assert ws._hermes_ws_subprotocol == web_server._GATEWAY_WS_PROTOCOL
@@ -77,7 +87,11 @@ def test_dashboard_ticket_subprotocol_carries_the_same_server_identity(gated_das
 
 def test_ws_transport_records_only_server_authenticated_identity():
     loop = SimpleNamespace()
-    identity = {"user_id": "user-fixture", "provider": "provider-fixture"}
+    identity = {
+        "user_id": "user-fixture",
+        "org_id": "org-fixture",
+        "provider": "provider-fixture",
+    }
     transport = WSTransport(
         SimpleNamespace(),
         loop,

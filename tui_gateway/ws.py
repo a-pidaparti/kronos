@@ -349,7 +349,7 @@ async def handle_ws(
 ) -> None:
     """Run one WebSocket session. Wire-compatible with ``tui_gateway.entry``.
 
-    *auth_identity* is the server-minted ``{user_id, provider}`` recorded at
+    *auth_identity* is the server-minted ``{user_id, org_id, provider}`` recorded at
     WS-upgrade authentication (``hermes_cli.web_server._ws_auth_reason``); it
     is stored on the transport as ``WSTransport.auth_identity`` and is the
     only identity authority for browser-controller registration. Existing
