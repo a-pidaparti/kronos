@@ -124,7 +124,7 @@ function RouteFallback({ label = "Loading…" }: { label?: string }) {
 }
 
 function RootRedirect() {
-  return <Navigate to="/sessions" replace />;
+  return <Navigate to="/chat" replace />;
 }
 
 function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
@@ -139,7 +139,7 @@ const CHAT_NAV_ITEM: NavItem = {
   path: "/chat",
   labelKey: "chat",
   label: "Chat",
-  icon: Terminal,
+  icon: MessageSquare,
 };
 
 /**
