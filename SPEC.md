@@ -1,7 +1,7 @@
 # Kronos Agent Desk
 
 ## Purpose
-Kronos provides an approachable web and desktop workspace for operating persistent Hermes agents. It serves individuals and organizations that need agents to converse, automate recurring work, collaborate safely, and retain context without exposing Hermes's research-oriented interfaces.
+Kronos provides an approachable web and desktop workspace for operating persistent Hermes agents, using Guild.ai's The Smith as its product comparison. It serves individuals and organizations that need agents to converse, automate recurring work, collaborate safely, and retain context without exposing Hermes's research-oriented interfaces.
 
 ## Users and flows
 - Operators create named agents, open each agent's persistent conversation, and inspect concurrent work from one desk.
@@ -19,7 +19,7 @@ Kronos provides an approachable web and desktop workspace for operating persiste
 - **RULE-6:** Delegated workers are bounded by configured concurrency, depth, iteration, and timeout limits. Their progress and terminal outcomes remain attributable to the parent session.
 - **RULE-7:** Routines are durable scheduled jobs scoped to their owning agent/profile. Operators can create, inspect, pause, resume, and run them, and failures remain visible rather than silently changing ownership.
 - **RULE-8:** Attachments preserve occurrence identity in the composer, upload through the authenticated gateway boundary, and remain scoped to the selected connection and profile.
-- **RULE-9:** Browser automation identity and persistent browser state are profile scoped. When a configured backend returns a live-view endpoint, Kronos exposes that handoff instead of merging browser state across agents.
+- **RULE-9:** Browser automation identity and persistent browser state are profile scoped. An authenticated interactive VNC handoff from the configured backend satisfies human takeover; Kronos exposes that handoff instead of merging browser state across agents.
 - **RULE-10:** Agent capabilities expand through Hermes toolsets, skills, MCP servers, and plugins. The desk exposes configured capabilities without adding a second agent runtime or mutating an active conversation's prompt/tool contract.
 - **RULE-11:** Conversation memory and history survive ordinary navigation, reconnects, background execution, and context compression. The backend remains authoritative; renderer state is a recoverable view of that truth.
 
@@ -39,7 +39,3 @@ Kronos provides an approachable web and desktop workspace for operating persiste
 - `tools/delegate_tool.py`, `tools/browser_camofox.py`, and `cron/` define bounded workers, profile-scoped browser sessions, live-view handoff, and durable routines.
 - `tests/gateway/test_browser_control_cloud.py`, `tests/hermes_cli/test_dashboard_auth_ws_auth.py`, and `tests/hermes_cli/test_dashboard_auth_ws_tickets.py` prove browser identity and authentication boundaries.
 - `apps/desktop/src/browser/bridge.test.ts`, `apps/desktop/src/plugins/hermes-bots/`, and `apps/desktop/src/store/session-states.test.ts` cover browser adaptation and persistent-agent ownership behavior.
-
-## Open questions
-- Which external Smith product and version is the canonical comparison for acceptance decisions?
-- Must human takeover be an embedded interactive desktop, or is an authenticated interactive VNC handoff from the selected browser backend sufficient?
