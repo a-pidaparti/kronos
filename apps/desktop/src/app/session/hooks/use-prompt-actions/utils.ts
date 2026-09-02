@@ -3,6 +3,7 @@ import type { AppendMessage } from '@assistant-ui/react'
 import { translateNow, type Translations } from '@/i18n'
 import type { ChatMessage } from '@/lib/chat-messages'
 import { type CommandsCatalogLike, filterDesktopCommandsCatalog } from '@/lib/desktop-slash-commands'
+import { agentSessionSource } from '@/lib/host-capabilities'
 import { isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
 import type { ComposerAttachment } from '@/store/composer'
 
@@ -125,7 +126,7 @@ export async function resumeStoredRuntimeSession(
 
     return deps.requestGateway<{ session_id: string }>('session.resume', {
       session_id: storedSessionId,
-      source: 'desktop',
+      source: agentSessionSource(),
       omit_messages: true,
       ...(profile ? { profile } : {})
     })

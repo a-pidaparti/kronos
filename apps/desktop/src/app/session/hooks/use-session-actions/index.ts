@@ -23,6 +23,7 @@ import {
   toChatMessages
 } from '@/lib/chat-messages'
 import { isMissingRpcMethod } from '@/lib/gateway-rpc'
+import { agentSessionSource } from '@/lib/host-capabilities'
 import { recoverInFlightTurnJournal } from '@/lib/inflight-turn-journal'
 import { setSessionYolo } from '@/lib/yolo-session'
 import { $clarifyRequests } from '@/store/clarify'
@@ -316,7 +317,7 @@ async function desktopSessionCreateParams(
 
   return {
     cols: 96,
-    source: 'desktop',
+    source: agentSessionSource(),
     ...(cwd && { cwd }),
     ...(profile ? { profile: capturedRoute?.targetProfile || profile } : {}),
     ...(selection.model
@@ -1524,7 +1525,7 @@ export function useSessionActions({
           requestForSession<SessionResumeResponse>('session.resume', {
             session_id: storedSessionId,
             cols: 96,
-            source: 'desktop',
+            source: agentSessionSource(),
             defer_history: !watchWindow,
             // REST is the transcript authority for Desktop. Avoid duplicating a
             // potentially huge compression lineage in the WebSocket response.
@@ -2054,7 +2055,7 @@ export function useSessionActions({
                 })
               : requestBranchGateway<SessionCreateResponse>('session.create', {
                   cols: 96,
-                  source: 'desktop',
+                  source: agentSessionSource(),
                   ...(cwd && { cwd }),
                   ...(profile ? { profile } : {}),
                   messages: branchMessages.map(({ content, role }) => ({ content, role })),

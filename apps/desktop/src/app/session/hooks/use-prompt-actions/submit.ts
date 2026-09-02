@@ -5,6 +5,7 @@ import type { Translations } from '@/i18n'
 import { type ChatMessage, textPart } from '@/lib/chat-messages'
 import { optimisticAttachmentRef } from '@/lib/chat-runtime'
 import { sanitizeComposerInput } from '@/lib/composer-input-sanitize'
+import { agentSessionSource } from '@/lib/host-capabilities'
 import { setMutableRef } from '@/lib/mutable-ref'
 import {
   isVoicePlaybackActive,
@@ -605,7 +606,7 @@ export function useSubmitPrompt(deps: SubmitPromptDeps) {
 
                 return requestGateway<{ session_id: string }>('session.resume', {
                   session_id: targetStoredSessionId,
-                  source: 'desktop',
+                  source: agentSessionSource(),
                   omit_messages: true,
                   ...(resumeProfile ? { profile: resumeProfile } : {})
                 })

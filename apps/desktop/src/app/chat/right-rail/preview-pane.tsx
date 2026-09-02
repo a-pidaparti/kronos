@@ -13,6 +13,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { guardGuestPointers } from '@/lib/guest-pointer-guard'
+import { isBrowserHost } from '@/lib/host-capabilities'
 import { openPreviewTargetInBrowser, remoteHtmlPreviewDocument } from '@/lib/local-preview'
 import { isRemoteGateway } from '@/lib/media'
 import {
@@ -253,6 +254,7 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
   const consoleBodyRef = useRef<HTMLDivElement | null>(null)
   const consoleShouldStickRef = useRef(true)
   const hostRef = useRef<HTMLDivElement | null>(null)
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const lastReloadRequestRef = useRef(reloadRequest)
   const lastRestartEventRef = useRef('')
   const previewContentRef = useRef<HTMLDivElement | null>(null)
@@ -396,6 +398,8 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
 
     if (webviewRef.current?.reloadIgnoringCache) {
       webviewRef.current.reloadIgnoringCache()
+    } else if (iframeRef.current) {
+      iframeRef.current.setAttribute('src', iframeRef.current.src)
     } else {
       webviewRef.current?.reload?.()
     }
@@ -699,14 +703,21 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
       // remote gateway `localhost:5173` is usually the dev server the user is
       // there to look at, not something on their own laptop.
       void reachablePreviewUrl(url)
-        .then(reached =>
+        .then(reached => {
+          if (iframeRef.current) {
+            iframeRef.current.src = reached
+            setCurrentUrl(reached)
+
+            return
+          }
+
           // loadURL, not a `src` swap: `src` only reloads when the value CHANGES,
           // so re-entering the address you're already on would do nothing. A
           // rejected load is a real navigation failure the user has to see —
           // `did-fail-load` doesn't fire for every rejection (a bad scheme
           // rejects outright).
-          webviewRef.current?.loadURL?.(reached)
-        )
+          return webviewRef.current?.loadURL?.(reached)
+        })
         .catch((error: unknown) => {
           setLoadError({
             description: error instanceof Error ? error.message : copy.unreachableDescription,
@@ -1007,6 +1018,7 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
 
     host.replaceChildren()
     webviewRef.current = null
+    iframeRef.current = null
     setCurrentUrl(target.url)
     setDevtoolsOpen(false)
     setHistory({ back: false, forward: false })
@@ -1018,6 +1030,32 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
       setLoading(false)
 
       return
+    }
+
+    if (isBrowserHost()) {
+      const iframe = document.createElement('iframe')
+      iframe.className = 'flex h-full w-full flex-1 border-0 bg-white'
+      iframe.referrerPolicy = 'no-referrer'
+      iframe.setAttribute('sandbox', 'allow-forms allow-modals allow-popups allow-scripts')
+      iframe.src = target.url
+
+      const onLoad = () => setLoading(false)
+      const onError = () => {
+        setLoadError({ description: copy.unreachableDescription, url: target.url })
+        setLoading(false)
+      }
+
+      iframe.addEventListener('load', onLoad)
+      iframe.addEventListener('error', onError)
+      host.appendChild(iframe)
+      iframeRef.current = iframe
+
+      return () => {
+        iframe.removeEventListener('load', onLoad)
+        iframe.removeEventListener('error', onError)
+        iframe.remove()
+        iframeRef.current = null
+      }
     }
 
     const webview = document.createElement('webview') as PreviewWebview
@@ -1306,9 +1344,9 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
               isBrowserWindow() || !tabId || !canOpenBrowserWindow() ? undefined : () => popOutBrowserTab(tabId)
             }
             onReload={reloadPreview}
-            onToggleAnnotate={toggleAnnotate}
-            onToggleConsole={() => consoleState.setOpen(open => !open)}
-            onToggleDevTools={toggleDevTools}
+            onToggleAnnotate={isBrowserHost() ? undefined : toggleAnnotate}
+            onToggleConsole={isBrowserHost() ? undefined : () => consoleState.setOpen(open => !open)}
+            onToggleDevTools={isBrowserHost() ? undefined : toggleDevTools}
             url={currentUrl}
           />
         )}

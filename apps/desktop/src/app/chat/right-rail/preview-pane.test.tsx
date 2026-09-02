@@ -41,6 +41,7 @@ describe('PreviewPane console state', () => {
 
   afterEach(() => {
     cleanup()
+    delete window.__HERMES_BROWSER__
     $connection.set(null)
     $selectedStoredSessionId.set(null)
     vi.unstubAllGlobals()
@@ -75,6 +76,31 @@ describe('PreviewPane console state', () => {
 
     expect(watchPreviewFile).not.toHaveBeenCalled()
     expect(onPreviewFileChanged).not.toHaveBeenCalled()
+  })
+
+  it('uses a sandboxed iframe and hides native guest controls in the browser', async () => {
+    window.__HERMES_BROWSER__ = true
+    const rendered = render(
+      <PreviewPane
+        target={{ kind: 'url', label: 'Preview', source: 'https://example.com', url: 'https://example.com' }}
+      />
+    )
+
+    const iframe = rendered.container.querySelector('iframe')
+
+    expect(iframe).toBeInstanceOf(HTMLIFrameElement)
+    expect(rendered.container.querySelector('webview')).toBeNull()
+    expect(iframe?.getAttribute('sandbox')?.split(' ')).toContain('allow-scripts')
+    expect(iframe?.getAttribute('sandbox')?.split(' ')).not.toContain('allow-same-origin')
+    expect(rendered.queryByRole('button', { name: 'Show console' })).toBeNull()
+    expect(rendered.queryByRole('button', { name: 'Open developer tools' })).toBeNull()
+
+    const address = rendered.getByRole('textbox', { name: 'Address' })
+    fireEvent.focus(address)
+    fireEvent.change(address, { target: { value: 'localhost:4000/app' } })
+    fireEvent.keyDown(address, { key: 'Enter' })
+
+    await waitFor(() => expect(iframe?.getAttribute('src')).toBe('http://localhost:4000/app'))
   })
 
   // The console lives in the TAB's store (the toggles sit on the tab, not in the

@@ -6162,9 +6162,9 @@ def _web_ui_build_needed(web_dir: Path) -> bool:
     source had genuinely changed (serving a stale dashboard) and force a
     rebuild when nothing had. A content hash is stable across mtime churn.
 
-    The dashboard source lives under ``web/`` but Vite outputs to
-    ``hermes_cli/web_dist/`` (per vite.config.ts outDir), NOT ``web/dist/``,
-    so the dist directory is never part of the hashed source tree.
+    ``web/package.json`` delegates the production build to the shared Desktop
+    renderer. The hash therefore covers both workspaces and ``apps/shared``;
+    Vite still outputs to ``hermes_cli/web_dist/``, outside every source root.
     """
     project_root = web_dir.parent.parent if web_dir.parent.name == "apps" else web_dir.parent
     dist_dir = project_root / "hermes_cli" / "web_dist"
@@ -6191,9 +6191,9 @@ def _web_ui_build_needed(web_dir: Path) -> bool:
 def _compute_web_ui_content_hash(project_root: Path, web_dir: Path) -> str:
     """Return a SHA-256 hex digest of the web UI source tree.
 
-    Covers ``web_dir`` (the dashboard frontend source) plus the root
-    ``package.json`` / ``package-lock.json`` (workspace config that
-    determines dependency resolution). Mirrors
+    Covers the dashboard build wrapper, the Desktop renderer, ``apps/shared``,
+    and the root workspace manifests that determine dependency resolution.
+    Mirrors
     ``_compute_desktop_content_hash()``: ignored paths (``node_modules/``,
     ``dist/``, ``*.pyc``, ...) are skipped via the repo-root ``.gitignore``
     so build output never feeds back into its own staleness check.
@@ -6228,19 +6228,36 @@ def _compute_web_ui_content_hash(project_root: Path, web_dir: Path) -> str:
             if not spec.match_file(rel):
                 _hash_file(p)
 
-    # Walk the web source tree, pruning ignored directories in-place so we
-    # never descend into node_modules/ or a stray dist/. Sort filenames for
-    # a deterministic, order-independent digest.
-    for dirpath, dirnames, filenames in os.walk(web_dir, topdown=True):
-        dirnames[:] = [
-            d for d in dirnames
-            if not spec.match_file(str((Path(dirpath) / d).relative_to(project_root)))
-        ]
-        for fn in sorted(filenames):
-            fp = Path(dirpath) / fn
-            rel = str(fp.relative_to(project_root))
-            if not spec.match_file(rel):
-                _hash_file(fp)
+    source_roots = [
+        web_dir,
+        project_root / "apps" / "desktop" / "src",
+        project_root / "apps" / "desktop" / "public",
+        project_root / "apps" / "shared" / "src",
+    ]
+    source_files = [
+        project_root / "apps" / "desktop" / "index.html",
+        project_root / "apps" / "desktop" / "package.json",
+        project_root / "apps" / "desktop" / "vite.config.ts",
+        project_root / "apps" / "shared" / "package.json",
+    ]
+
+    for fp in source_files:
+        if fp.is_file() and not spec.match_file(str(fp.relative_to(project_root))):
+            _hash_file(fp)
+
+    # Prune ignored directories in-place so node_modules and generated output
+    # never feed back into the digest. Sort roots and filenames for determinism.
+    for source_root in sorted(path for path in source_roots if path.is_dir()):
+        for dirpath, dirnames, filenames in os.walk(source_root, topdown=True):
+            dirnames[:] = [
+                d for d in dirnames
+                if not spec.match_file(str((Path(dirpath) / d).relative_to(project_root)))
+            ]
+            for fn in sorted(filenames):
+                fp = Path(dirpath) / fn
+                rel = str(fp.relative_to(project_root))
+                if not spec.match_file(rel):
+                    _hash_file(fp)
 
     return h.hexdigest()
 
@@ -6669,16 +6686,15 @@ def _do_build_web_ui(web_dir: Path, *, fatal: bool = False) -> bool:
                 _say(text)
 
     npm_cwd = _workspace_root(web_dir)
-    # Scope the install to the web workspace only so that the full workspace
-    # graph (including apps/desktop with its Electron + node-pty deps) is never
-    # resolved here.  Without --workspace the root package.json's apps/* glob
-    # would pull in desktop on every web build. See #38772.
+    # The web build delegates to apps/desktop so the dashboard and Desktop use
+    # one renderer. Install both named workspaces rather than the full apps/*
+    # graph; this is the clean-install path for the renderer build toolchain.
     # When web/ has its own package-lock.json, _workspace_root() returns
     # web_dir itself and --workspace would fail.  See #42973.
     #
     # When running from the workspace root, this must name the SAME closure
-    # as `hermes update`'s _update_node_dependencies() (ui-tui + web +
-    # --include-workspace-root): the helper prefers `npm ci`, which deletes
+    # as `hermes update`'s _update_node_dependencies(), plus apps/desktop for
+    # the shared renderer: the helper prefers `npm ci`, which deletes
     # node_modules before reifying the requested tree, so a narrower closure
     # here silently prunes everything the update step just installed (root
     # devDependencies and the ui-tui workspace) while still exiting 0 —
@@ -6689,6 +6705,9 @@ def _do_build_web_ui(web_dir: Path, *, fatal: bool = False) -> bool:
         npm_workspace_args = ()
     else:
         npm_workspace_args = ("--workspace", "web", "--include-workspace-root")
+        desktop_package = npm_cwd / "apps" / "desktop" / "package.json"
+        if desktop_package.exists():
+            npm_workspace_args = ("--workspace", "apps/desktop", *npm_workspace_args)
         # Prebuilt/partial checkouts can lack the ui-tui workspace; naming a
         # missing workspace makes npm fail hard, so only include it when
         # present (same guard as _update_node_dependencies()).

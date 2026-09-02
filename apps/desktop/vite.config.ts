@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import babel from '@rolldown/plugin-babel'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 
@@ -37,6 +37,58 @@ const fsAllow = [
     ].filter((p): p is string => p !== null)
   )
 ]
+
+const dashboardBackend = process.env.HERMES_DASHBOARD_URL ?? 'http://127.0.0.1:9119'
+const browserBuild = process.env.HERMES_DESKTOP_BROWSER === '1'
+
+const browserEntry = (): Plugin => ({
+  name: 'hermes:browser-entry',
+  transformIndexHtml: {
+    order: 'pre',
+    handler(html) {
+      if (!browserBuild) {
+        return html
+      }
+
+      const browserHtml = html.replace('/src/main.tsx', '/src/browser-main.ts')
+
+      if (browserHtml === html) {
+        throw new Error('Could not select the Hermes browser renderer entry.')
+      }
+
+      return browserHtml
+    }
+  }
+})
+
+// Browser development is served by Vite while the authenticated API lives on
+// `hermes dashboard`. Mirror the production index injection and proxy requests
+// so this exact renderer can be exercised without an Electron preload.
+const dashboardBrowserDev = (): Plugin => ({
+  name: 'hermes:dashboard-browser-dev',
+  apply: (_config, { command }) => browserBuild && command === 'serve',
+  async transformIndexHtml() {
+    try {
+      const response = await fetch(dashboardBackend, { headers: { accept: 'text/html' } })
+      const html = await response.text()
+      const token = html.match(/window\.__HERMES_SESSION_TOKEN__\s*=\s*"([^"]+)"/)?.[1] ?? ''
+      const authRequired = html.match(/window\.__HERMES_AUTH_REQUIRED__\s*=\s*(true|false)/)?.[1] ?? 'false'
+
+      return [
+        {
+          tag: 'script',
+          injectTo: 'head',
+          children:
+            `window.__HERMES_SESSION_TOKEN__=${JSON.stringify(token)};` +
+            `window.__HERMES_BASE_PATH__="";` +
+            `window.__HERMES_AUTH_REQUIRED__=${authRequired};`
+        }
+      ]
+    } catch (error) {
+      console.warn(`[hermes] Dashboard at ${dashboardBackend} is unavailable: ${(error as Error).message}`)
+    }
+  }
+})
 
 // React refuses to run when `react` and `react-dom` come from two different
 // installed copies ("Minified React error #527" — a blank window, since it
@@ -103,7 +155,14 @@ const emojibaseAssets = () => ({
 
 export default defineConfig(({ command }) => ({
   base: './',
-  plugins: [react(), babel({ presets: [compilerPreset()] }), tailwindcss(), emojibaseAssets()],
+  plugins: [
+    browserEntry(),
+    react(),
+    babel({ presets: [compilerPreset()] }),
+    tailwindcss(),
+    emojibaseAssets(),
+    dashboardBrowserDev()
+  ],
   css: {
     // Pin an explicit (empty) PostCSS config. Tailwind is handled entirely by
     // `@tailwindcss/vite`, so the renderer needs no PostCSS plugins — and
@@ -230,6 +289,13 @@ export default defineConfig(({ command }) => ({
     strictPort: true,
     fs: {
       allow: fsAllow
+    },
+    proxy: {
+      '/api': {
+        target: dashboardBackend,
+        ws: true
+      },
+      '/dashboard-plugins': dashboardBackend
     }
   },
   preview: {
